@@ -86,10 +86,32 @@ function init() {
   controls.addEventListener('change', render);
 
   // --- EVENT LISTENERS ---
-  document.getElementById('table').addEventListener('click', () => transform(targets.table, 2000));
-  document.getElementById('sphere').addEventListener('click', () => transform(targets.sphere, 2000));
-  document.getElementById('helix').addEventListener('click', () => transform(targets.helix, 2000));
-  document.getElementById('grid').addEventListener('click', () => transform(targets.grid, 2000));
+  const setActiveMenuButton = (activeId) => {
+    ['table', 'sphere', 'helix', 'grid'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.classList.toggle('active', id === activeId);
+      }
+    });
+  };
+  setActiveMenuButton('table');
+
+  document.getElementById('table').addEventListener('click', () => {
+    setActiveMenuButton('table');
+    transform(targets.table, 2000);
+  });
+  document.getElementById('sphere').addEventListener('click', () => {
+    setActiveMenuButton('sphere');
+    transform(targets.sphere, 2000);
+  });
+  document.getElementById('helix').addEventListener('click', () => {
+    setActiveMenuButton('helix');
+    transform(targets.helix, 2000);
+  });
+  document.getElementById('grid').addEventListener('click', () => {
+    setActiveMenuButton('grid');
+    transform(targets.grid, 2000);
+  });
   window.addEventListener('resize', onWindowResize);
 }
 
