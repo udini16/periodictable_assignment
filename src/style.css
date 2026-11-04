@@ -102,6 +102,8 @@ button:hover {
   align-items: center;
   justify-content: space-between;
   user-select: none;
+  will-change: transform;
+  contain: layout style paint;
 }
 
 .element .tile-header {
