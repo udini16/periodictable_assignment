@@ -5,11 +5,39 @@ import * as TWEEN from '@tweenjs/tween.js';
 import Papa from 'papaparse';
 import './style.css';
 
+// --- CONFIGURATION CONSTANTS ---
+const GOOGLE_SHEET_ID = '1sZ5Bqk9ug1dLvotbat-kT4vrAUQrhGYDaWIGNHcDU7E';
+const GOOGLE_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv`;
+
+const NET_WORTH_THRESHOLDS = {
+  LOW: 100000,
+  HIGH: 200000,
+};
+
+const TILE_COLORS = {
+  RED: 'rgba(239, 48, 34, 0.8)',     // < $100K
+  ORANGE: 'rgba(245, 166, 35, 0.8)', // $100K - $200K
+  GREEN: 'rgba(58, 148, 72, 0.8)',   // > $200K
+};
+
+const LAYOUT_CONFIG = {
+  TRANSITION_DURATION_MS: 2000,
+  TABLE: { COLUMNS: 20, X_SPACING: 140, Y_SPACING: 180, X_OFFSET: 1330, Y_OFFSET: 990 },
+  SPHERE: { RADIUS: 800 },
+  HELIX: { STRANDS: 2, RADIUS: 900, THETA_STEP: 0.175, Y_STEP: 16, Y_OFFSET: 800 },
+  GRID: { COLUMNS: 5, ROWS: 4, X_SPACING: 400, Y_SPACING: 400, Z_SPACING: 1000, X_OFFSET: 800, Y_OFFSET: 600, Z_OFFSET: 2000 },
+};
+
+// --- SCENE STATE ---
 let camera, scene, renderer, controls;
 const objects = [];
 const targets = { table: [], sphere: [], helix: [], grid: [] };
 const tweenGroup = new TWEEN.Group();
 
+/**
+ * Handles Google Identity Services OAuth callback and initializes the 3D scene.
+ * @param {Object} response - Google credential response payload.
+ */
 window._startPeriodicTable = (response) => {
   const landingEl = document.getElementById('landing-container');
   if (landingEl) landingEl.style.display = 'none';
@@ -24,7 +52,7 @@ if (window._pendingCredential) {
   window._startPeriodicTable(window._pendingCredential);
 }
 
-// Public Landing Page -> Login Screen navigation
+// Public Landing Page <-> Login Screen navigation
 const goToLoginBtn = document.getElementById('go-to-login-btn');
 if (goToLoginBtn) {
   goToLoginBtn.addEventListener('click', () => {
@@ -42,50 +70,53 @@ if (backToLandingLink) {
   });
 }
 
+/**
+ * Determines the tile background color based on parsed Net Worth value.
+ * @param {string|number} valueStr - Raw Net Worth string from CSV (e.g., "$251,260.80").
+ * @returns {string} CSS rgba color string.
+ */
 function getNetWorthColor(valueStr) {
-  // Strip out the $ and commas to turn it into a real number
-  const value = parseFloat(String(valueStr).replace(/[^0-9.-]+/g, ""));
-  if (value < 100000) return 'rgba(239, 48, 34, 0.8)';   // Red (< $100K)
-  if (value > 200000) return 'rgba(58, 148, 72, 0.8)';   // Green (> $200K)
-  return 'rgba(245, 166, 35, 0.8)';                      // Orange ($100K - $200K)
+  const value = parseFloat(String(valueStr).replace(/[^0-9.-]+/g, ''));
+  if (value < NET_WORTH_THRESHOLDS.LOW) return TILE_COLORS.RED;
+  if (value > NET_WORTH_THRESHOLDS.HIGH) return TILE_COLORS.GREEN;
+  return TILE_COLORS.ORANGE;
 }
 
+/**
+ * Initializes the Three.js camera, CSS3DRenderer, TrackballControls, and fetches CSV data.
+ */
 function init() {
   camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 10000);
   camera.position.z = 3000;
   scene = new THREE.Scene();
 
-  // 1. Fetch YOUR Google Sheet Data
-  const sheetId = '1sZ5Bqk9ug1dLvotbat-kT4vrAUQrhGYDaWIGNHcDU7E';
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-
-  Papa.parse(sheetUrl, {
+  // 1. Fetch & parse Google Sheet CSV dataset
+  Papa.parse(GOOGLE_SHEET_CSV_URL, {
     download: true,
     header: true,
     skipEmptyLines: true,
-    complete: function(results) {
-      // Filter out any empty rows just in case
-      const data = results.data.filter(row => row.Name);
+    complete: function (results) {
+      const data = results.data.filter((row) => row.Name);
       buildPeriodicTable(data);
     },
-    error: function(error) {
-      console.error("Error fetching Google Sheet:", error);
+    error: function (error) {
+      console.error('Error fetching Google Sheet:', error);
       alert("Failed to load data. Make sure the Google Sheet sharing setting is 'Anyone with the link'.");
-    }
+    },
   });
 
-  // --- RENDERER SETUP ---
+  // 2. Renderer setup
   renderer = new CSS3DRenderer();
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.getElementById('container').appendChild(renderer.domElement);
 
-  // --- CAMERA CONTROLS ---
+  // 3. Camera controls
   controls = new TrackballControls(camera, renderer.domElement);
   controls.minDistance = 500;
   controls.maxDistance = 6000;
   controls.addEventListener('change', render);
 
-  // --- EVENT LISTENERS ---
+  // 4. Layout view switcher listeners
   const setActiveMenuButton = (activeId) => {
     ['table', 'sphere', 'helix', 'grid'].forEach((id) => {
       const btn = document.getElementById(id);
@@ -96,70 +127,84 @@ function init() {
   };
   setActiveMenuButton('table');
 
+  const duration = LAYOUT_CONFIG.TRANSITION_DURATION_MS;
   document.getElementById('table').addEventListener('click', () => {
     setActiveMenuButton('table');
-    transform(targets.table, 2000);
+    transform(targets.table, duration);
   });
   document.getElementById('sphere').addEventListener('click', () => {
     setActiveMenuButton('sphere');
-    transform(targets.sphere, 2000);
+    transform(targets.sphere, duration);
   });
   document.getElementById('helix').addEventListener('click', () => {
     setActiveMenuButton('helix');
-    transform(targets.helix, 2000);
+    transform(targets.helix, duration);
   });
   document.getElementById('grid').addEventListener('click', () => {
     setActiveMenuButton('grid');
-    transform(targets.grid, 2000);
+    transform(targets.grid, duration);
   });
+
   window.addEventListener('resize', onWindowResize);
 }
 
-// 2. Build the 3D Elements once data is loaded
+/**
+ * Creates a DOM element for a single 3D profile tile matching Image B specification.
+ * @param {Object} person - Row record from the Google Sheet CSV.
+ * @returns {HTMLDivElement} Configured tile DOM element.
+ */
+function createTileElement(person) {
+  const element = document.createElement('div');
+  element.className = 'element';
+
+  const netWorthRaw = person['Net Worth'] || person[' Net Worth '] || '$0';
+  element.style.backgroundColor = getNetWorthColor(netWorthRaw);
+
+  // Top header: Country (left) and Age (right)
+  const header = document.createElement('div');
+  header.className = 'tile-header';
+
+  const country = document.createElement('span');
+  country.className = 'country';
+  country.textContent = person.Country || '';
+  header.appendChild(country);
+
+  const age = document.createElement('span');
+  age.className = 'age';
+  age.textContent = person.Age || '';
+  header.appendChild(age);
+
+  element.appendChild(header);
+
+  // Center: Profile photo
+  const photo = document.createElement('img');
+  photo.decoding = 'async';
+  photo.src = person.Photo || 'https://via.placeholder.com/60';
+  photo.className = 'photo';
+  photo.alt = person.Name || 'Profile';
+  element.appendChild(photo);
+
+  // Bottom: Name & Interest
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = person.Name || 'Unknown';
+  element.appendChild(name);
+
+  const interest = document.createElement('div');
+  interest.className = 'interest';
+  interest.textContent = person.Interest || 'N/A';
+  element.appendChild(interest);
+
+  return element;
+}
+
+/**
+ * Builds the 3D CSS objects and precomputes coordinates for all 4 spatial formations.
+ * @param {Array<Object>} data - Array of parsed CSV records.
+ */
 function buildPeriodicTable(data) {
   data.forEach((person) => {
-    const element = document.createElement('div');
-    element.className = 'element';
-
-    // Handle Net Worth column name variations
-    const netWorthRaw = person['Net Worth'] || person[' Net Worth '] || "$0";
-    element.style.backgroundColor = getNetWorthColor(netWorthRaw);
-
-    // Top row: Country (left) and Age (right) - matching Image B
-    const header = document.createElement('div');
-    header.className = 'tile-header';
-
-    const country = document.createElement('span');
-    country.className = 'country';
-    country.textContent = person.Country || '';
-    header.appendChild(country);
-
-    const age = document.createElement('span');
-    age.className = 'age';
-    age.textContent = person.Age || '';
-    header.appendChild(age);
-
-    element.appendChild(header);
-
-    // Center: Photo
-    const photo = document.createElement('img');
-    photo.decoding = 'async';
-    photo.src = person.Photo || 'https://via.placeholder.com/60';
-    photo.className = 'photo';
-    photo.alt = person.Name || 'Profile';
-    element.appendChild(photo);
-
-    // Bottom: Name & Interest
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = person.Name || 'Unknown';
-    element.appendChild(name);
-
-    const interest = document.createElement('div');
-    interest.className = 'interest';
-    interest.textContent = person.Interest || 'N/A';
-    element.appendChild(interest);
-
+    const element = createTileElement(person);
     const objectCSS = new CSS3DObject(element);
     objectCSS.position.x = Math.random() * 4000 - 2000;
     objectCSS.position.y = Math.random() * 4000 - 2000;
@@ -168,35 +213,39 @@ function buildPeriodicTable(data) {
     objects.push(objectCSS);
   });
 
-  // TABLE (20x10)
-  for (let i = 0; i < objects.length; i++) {
+  const count = objects.length;
+  const vector = new THREE.Vector3();
+
+  // 1. TABLE (20x10)
+  const { COLUMNS, X_SPACING, Y_SPACING, X_OFFSET, Y_OFFSET } = LAYOUT_CONFIG.TABLE;
+  for (let i = 0; i < count; i++) {
     const object = new THREE.Object3D();
-    object.position.x = ((i % 20) * 140) - 1330;
-    object.position.y = -(Math.floor(i / 20) * 180) + 990;
+    object.position.x = (i % COLUMNS) * X_SPACING - X_OFFSET;
+    object.position.y = -(Math.floor(i / COLUMNS) * Y_SPACING) + Y_OFFSET;
     targets.table.push(object);
   }
 
-  // SPHERE
-  const vector = new THREE.Vector3();
-  for (let i = 0; i < objects.length; i++) {
-    const phi = Math.acos(-1 + (2 * i) / objects.length);
-    const theta = Math.sqrt(objects.length * Math.PI) * phi;
+  // 2. SPHERE
+  for (let i = 0; i < count; i++) {
+    const phi = Math.acos(-1 + (2 * i) / count);
+    const theta = Math.sqrt(count * Math.PI) * phi;
     const object = new THREE.Object3D();
-    object.position.setFromSphericalCoords(800, phi, theta);
+    object.position.setFromSphericalCoords(LAYOUT_CONFIG.SPHERE.RADIUS, phi, theta);
     vector.copy(object.position).multiplyScalar(2);
     object.lookAt(vector);
     targets.sphere.push(object);
   }
 
-  // DOUBLE HELIX
-  for (let i = 0; i < objects.length; i++) {
+  // 3. DOUBLE HELIX
+  const { STRANDS, RADIUS, THETA_STEP, Y_STEP, Y_OFFSET: HELIX_Y_OFFSET } = LAYOUT_CONFIG.HELIX;
+  for (let i = 0; i < count; i++) {
     const object = new THREE.Object3D();
-    const strand = i % 2;
-    const index = Math.floor(i / 2);
-    const theta = index * 0.175 + (strand * Math.PI);
-    const y = -(index * 16) + 800;
+    const strand = i % STRANDS;
+    const index = Math.floor(i / STRANDS);
+    const theta = index * THETA_STEP + strand * Math.PI;
+    const y = -(index * Y_STEP) + HELIX_Y_OFFSET;
 
-    object.position.setFromCylindricalCoords(900, theta, y);
+    object.position.setFromCylindricalCoords(RADIUS, theta, y);
 
     vector.x = object.position.x * 2;
     vector.y = object.position.y;
@@ -205,25 +254,30 @@ function buildPeriodicTable(data) {
     targets.helix.push(object);
   }
 
-  // GRID (5x4x10)
-  for (let i = 0; i < objects.length; i++) {
+  // 4. GRID (5x4x10)
+  const gridCfg = LAYOUT_CONFIG.GRID;
+  const layerSize = gridCfg.COLUMNS * gridCfg.ROWS;
+  for (let i = 0; i < count; i++) {
     const object = new THREE.Object3D();
-    object.position.x = ((i % 5) * 400) - 800;
-    object.position.y = (-(Math.floor(i / 5) % 4) * 400) + 600;
-    object.position.z = (Math.floor(i / 20)) * 1000 - 2000;
+    object.position.x = (i % gridCfg.COLUMNS) * gridCfg.X_SPACING - gridCfg.X_OFFSET;
+    object.position.y = -(Math.floor(i / gridCfg.COLUMNS) % gridCfg.ROWS) * gridCfg.Y_SPACING + gridCfg.Y_OFFSET;
+    object.position.z = Math.floor(i / layerSize) * gridCfg.Z_SPACING - gridCfg.Z_OFFSET;
     targets.grid.push(object);
   }
 
-  // Start with table layout immediately after data loads
-  transform(targets.table, 2000);
+  transform(targets.table, LAYOUT_CONFIG.TRANSITION_DURATION_MS);
 }
 
-// 3. Transformation Logic
-function transform(targets, duration) {
+/**
+ * Animates all 3D objects toward the specified target formation.
+ * @param {Array<THREE.Object3D>} targetList - Target positions and rotations.
+ * @param {number} duration - Base animation duration in milliseconds.
+ */
+function transform(targetList, duration) {
   tweenGroup.removeAll();
   for (let i = 0; i < objects.length; i++) {
     const object = objects[i];
-    const target = targets[i];
+    const target = targetList[i];
 
     new TWEEN.Tween(object.position, tweenGroup)
       .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
