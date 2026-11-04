@@ -11,6 +11,8 @@ const targets = { table: [], sphere: [], helix: [], grid: [] };
 const tweenGroup = new TWEEN.Group();
 
 window._startPeriodicTable = (response) => {
+  const landingEl = document.getElementById('landing-container');
+  if (landingEl) landingEl.style.display = 'none';
   document.getElementById('login-container').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   init();
@@ -20,6 +22,24 @@ window.handleCredentialResponse = window._startPeriodicTable;
 
 if (window._pendingCredential) {
   window._startPeriodicTable(window._pendingCredential);
+}
+
+// Public Landing Page -> Login Screen navigation
+const goToLoginBtn = document.getElementById('go-to-login-btn');
+if (goToLoginBtn) {
+  goToLoginBtn.addEventListener('click', () => {
+    document.getElementById('landing-container').style.display = 'none';
+    document.getElementById('login-container').style.display = 'flex';
+  });
+}
+
+const backToLandingLink = document.getElementById('back-to-landing-link');
+if (backToLandingLink) {
+  backToLandingLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('landing-container').style.display = 'flex';
+  });
 }
 
 function getNetWorthColor(valueStr) {

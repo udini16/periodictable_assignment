@@ -5,7 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
-    <title>Periodic Table Assignment</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Udini Periodic Table</title>
     <script>
       window.handleCredentialResponse = function (response) {
         if (window._startPeriodicTable) {
@@ -17,27 +18,53 @@
     </script>
   </head>
 
-<body>
-  <!-- Login Screen -->
-  <div id="login-container">
-    <div class="login-card">
-      <h1>Welcome Back</h1>
-      <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit</p>
+  <body>
+    <!-- Public Landing Page (Initial Load for Google Verification) -->
+    <div id="landing-container">
+      <div class="landing-card">
+        <img src="/logo.png" alt="Udini Periodic Table Logo" class="landing-logo" />
+        <h1>Udini Periodic Table</h1>
+        <p class="landing-description">
+          <strong>Udini Periodic Table</strong> is an interactive 3D web visualization application powered by Three.js.
+          It retrieves live dataset records from Google Sheets and renders them as Net Worth color-coded 3D tiles across
+          four dynamic spatial arrangements: <strong>20&times;10 Table</strong>, <strong>Sphere</strong>,
+          <strong>Double Helix</strong>, and <strong>5&times;4&times;10 Grid</strong>.
+        </p>
 
-      <div class="google-btn-wrapper">
-        <div id="g_id_onload"
-          data-client_id="78195838369-8knm3ro5otm0ijg6pbk52gaqgnamtlff.apps.googleusercontent.com"
-          data-callback="handleCredentialResponse"
-          data-use_fedcm_for_prompt="false"
-          data-use_fedcm_for_button="false">
-        </div>
-        <!-- Configured to match Image A's blue button -->
-        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_blue"
-          data-text="signin_with" data-size="large" data-logo_alignment="left">
+        <button id="go-to-login-btn" class="primary-btn">Proceed to Sign In</button>
+
+        <div class="landing-footer">
+          <a href="/privacy.html">Privacy Policy</a>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- Login Screen (Image A - Hidden on initial load until user clicks Proceed) -->
+    <div id="login-container" style="display: none;">
+      <div class="login-card">
+        <h1>Welcome Back</h1>
+        <img src="/logo.png" alt="Periodic Table Logo" class="login-logo" />
+
+        <div class="google-btn-wrapper">
+          <div id="g_id_onload"
+            data-client_id="78195838369-8knm3ro5otm0ijg6pbk52gaqgnamtlff.apps.googleusercontent.com"
+            data-callback="handleCredentialResponse"
+            data-use_fedcm_for_prompt="false"
+            data-use_fedcm_for_button="false">
+          </div>
+          <!-- Configured to match Image A's blue button -->
+          <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_blue"
+            data-text="signin_with" data-size="large" data-logo_alignment="left">
+          </div>
+        </div>
+
+        <div class="login-footer">
+          <a href="#" id="back-to-landing-link">&larr; Back</a>
+          <span>&bull;</span>
+          <a href="/privacy.html">Privacy Policy</a>
+        </div>
+      </div>
+    </div>
 
     <!-- 3D Scene Container (Hidden until login) -->
     <div id="app" style="display: none;">
