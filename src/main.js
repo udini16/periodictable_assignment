@@ -1,25 +1,33 @@
 import * as THREE from 'three';
 import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
 import * as TWEEN from '@tweenjs/tween.js';
+import Papa from 'papaparse';
 import './style.css';
 
-let camera, scene, renderer;
+let camera, scene, renderer, controls;
 const objects = [];
 const targets = { table: [], sphere: [], helix: [], grid: [] };
+const tweenGroup = new TWEEN.Group();
 
-window.handleCredentialResponse = (response) => {
+window._startPeriodicTable = (response) => {
   document.getElementById('login-container').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   init();
   animate();
 };
+window.handleCredentialResponse = window._startPeriodicTable;
+
+if (window._pendingCredential) {
+  window._startPeriodicTable(window._pendingCredential);
+}
 
 function getNetWorthColor(valueStr) {
   // Strip out the $ and commas to turn it into a real number
-  const value = parseFloat(valueStr.replace(/[^0-9.-]+/g, ""));
-  if (value < 100000) return 'rgba(239, 48, 34, 0.8)'; 
-  if (value > 200000) return 'rgba(58, 148, 72, 0.8)'; 
-  return 'rgba(245, 166, 35, 0.8)'; 
+  const value = parseFloat(String(valueStr).replace(/[^0-9.-]+/g, ""));
+  if (value < 100000) return 'rgba(239, 48, 34, 0.8)';   // Red (< $100K)
+  if (value > 200000) return 'rgba(58, 148, 72, 0.8)';   // Green (> $200K)
+  return 'rgba(245, 166, 35, 0.8)';                      // Orange ($100K - $200K)
 }
 
 function init() {
@@ -28,12 +36,13 @@ function init() {
   scene = new THREE.Scene();
 
   // 1. Fetch YOUR Google Sheet Data
-  const sheetId = '1sZ5Bqk9ug1dLvotbat-kT4vrAUQrhGYDaWIGNHcDU7E'; 
+  const sheetId = '1sZ5Bqk9ug1dLvotbat-kT4vrAUQrhGYDaWIGNHcDU7E';
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
   Papa.parse(sheetUrl, {
     download: true,
     header: true,
+    skipEmptyLines: true,
     complete: function(results) {
       // Filter out any empty rows just in case
       const data = results.data.filter(row => row.Name);
@@ -50,6 +59,12 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.getElementById('container').appendChild(renderer.domElement);
 
+  // --- CAMERA CONTROLS ---
+  controls = new TrackballControls(camera, renderer.domElement);
+  controls.minDistance = 500;
+  controls.maxDistance = 6000;
+  controls.addEventListener('change', render);
+
   // --- EVENT LISTENERS ---
   document.getElementById('table').addEventListener('click', () => transform(targets.table, 2000));
   document.getElementById('sphere').addEventListener('click', () => transform(targets.sphere, 2000));
@@ -60,19 +75,38 @@ function init() {
 
 // 2. Build the 3D Elements once data is loaded
 function buildPeriodicTable(data) {
-  data.forEach((person, i) => {
+  data.forEach((person) => {
     const element = document.createElement('div');
     element.className = 'element';
-    
-    // Ensure we handle spaces in the CSV column name: ' Net Worth '
-    const netWorthRaw = person[' Net Worth '] || person['Net Worth'] || "$0";
+
+    // Handle Net Worth column name variations
+    const netWorthRaw = person['Net Worth'] || person[' Net Worth '] || "$0";
     element.style.backgroundColor = getNetWorthColor(netWorthRaw);
 
+    // Top row: Country (left) and Age (right) - matching Image B
+    const header = document.createElement('div');
+    header.className = 'tile-header';
+
+    const country = document.createElement('span');
+    country.className = 'country';
+    country.textContent = person.Country || '';
+    header.appendChild(country);
+
+    const age = document.createElement('span');
+    age.className = 'age';
+    age.textContent = person.Age || '';
+    header.appendChild(age);
+
+    element.appendChild(header);
+
+    // Center: Photo
     const photo = document.createElement('img');
     photo.src = person.Photo || 'https://via.placeholder.com/60';
     photo.className = 'photo';
+    photo.alt = person.Name || 'Profile';
     element.appendChild(photo);
 
+    // Bottom: Name & Interest
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = person.Name || 'Unknown';
@@ -114,14 +148,13 @@ function buildPeriodicTable(data) {
   // DOUBLE HELIX
   for (let i = 0; i < objects.length; i++) {
     const object = new THREE.Object3D();
-    const strand = i % 2; 
+    const strand = i % 2;
     const index = Math.floor(i / 2);
-    const phi = index * 0.175 + (strand * Math.PI);
-    
-    object.position.x = 900 * Math.sin(phi);
-    object.position.y = -(index * 16) + 450;
-    object.position.z = 900 * Math.cos(phi);
-    
+    const theta = index * 0.175 + (strand * Math.PI);
+    const y = -(index * 16) + 800;
+
+    object.position.setFromCylindricalCoords(900, theta, y);
+
     vector.x = object.position.x * 2;
     vector.y = object.position.y;
     vector.z = object.position.z * 2;
@@ -133,7 +166,7 @@ function buildPeriodicTable(data) {
   for (let i = 0; i < objects.length; i++) {
     const object = new THREE.Object3D();
     object.position.x = ((i % 5) * 400) - 800;
-    object.position.y = -(Math.floor(i / 5) % 4) * 400 + 800;
+    object.position.y = (-(Math.floor(i / 5) % 4) * 400) + 600;
     object.position.z = (Math.floor(i / 20)) * 1000 - 2000;
     targets.grid.push(object);
   }
@@ -144,22 +177,22 @@ function buildPeriodicTable(data) {
 
 // 3. Transformation Logic
 function transform(targets, duration) {
-  TWEEN.removeAll();
+  tweenGroup.removeAll();
   for (let i = 0; i < objects.length; i++) {
     const object = objects[i];
     const target = targets[i];
 
-    new TWEEN.Tween(object.position)
+    new TWEEN.Tween(object.position, tweenGroup)
       .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
       .easing(TWEEN.Easing.Exponential.InOut)
       .start();
 
-    new TWEEN.Tween(object.rotation)
+    new TWEEN.Tween(object.rotation, tweenGroup)
       .to({ x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration)
       .easing(TWEEN.Easing.Exponential.InOut)
       .start();
   }
-  new TWEEN.Tween(this)
+  new TWEEN.Tween({}, tweenGroup)
     .to({}, duration * 2)
     .onUpdate(render)
     .start();
@@ -174,7 +207,8 @@ function onWindowResize() {
 
 function animate() {
   requestAnimationFrame(animate);
-  TWEEN.update();
+  tweenGroup.update();
+  if (controls) controls.update();
 }
 
 function render() {
