@@ -1,50 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
+
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
     <title>Periodic Table Assignment</title>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      window.handleCredentialResponse = function (response) {
+        if (window._startPeriodicTable) {
+          window._startPeriodicTable(response);
+        } else {
+          window._pendingCredential = response;
+        }
+      };
+    </script>
   </head>
-  <body>
-    <body>
-    <!-- Login Screen -->
-    <div id="login-container">
-      <div class="login-card">
-        <h1>Welcome Back</h1>
-        <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit</p>
-        
-        <div class="google-btn-wrapper">
-          <div id="g_id_onload"
-               data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-               data-callback="handleCredentialResponse">
-          </div>
-          <!-- Configured to match Image A's blue button -->
-          <div class="g_id_signin" 
-               data-type="standard" 
-               data-shape="rectangular" 
-               data-theme="filled_blue" 
-               data-text="signin_with" 
-               data-size="large" 
-               data-logo_alignment="left">
-          </div>
+
+<body>
+  <!-- Login Screen -->
+  <div id="login-container">
+    <div class="login-card">
+      <h1>Welcome Back</h1>
+      <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit</p>
+
+      <div class="google-btn-wrapper">
+        <div id="g_id_onload"
+          data-client_id="78195838369-8knm3ro5otm0ijg6pbk52gaqgnamtlff.apps.googleusercontent.com"
+          data-callback="handleCredentialResponse"
+          data-use_fedcm_for_prompt="false"
+          data-use_fedcm_for_button="false">
+        </div>
+        <!-- Configured to match Image A's blue button -->
+        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_blue"
+          data-text="signin_with" data-size="large" data-logo_alignment="left">
         </div>
       </div>
     </div>
-
-    <!-- 3D Scene Container -->
-    <div id="app" style="display: none;">
-      <div id="container"></div>
-      <div id="menu">
-        <button id="table">TABLE</button>
-        <button id="sphere">SPHERE</button>
-        <button id="helix">HELIX</button>
-        <button id="grid">GRID</button>
-      </div>
-    </div>
-    
-    <script type="module" src="/main.js"></script>
-  </body>
+  </div>
 
     <!-- 3D Scene Container (Hidden until login) -->
     <div id="app" style="display: none;">
@@ -56,7 +49,9 @@
         <button id="grid">GRID</button>
       </div>
     </div>
-    
-    <script type="module" src="/main.js"></script>
+
+    <script type="module" src="/src/main.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </body>
+
 </html>
