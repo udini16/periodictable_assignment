@@ -101,6 +101,7 @@ function buildPeriodicTable(data) {
 
     // Center: Photo
     const photo = document.createElement('img');
+    photo.decoding = 'async';
     photo.src = person.Photo || 'https://via.placeholder.com/60';
     photo.className = 'photo';
     photo.alt = person.Name || 'Profile';
