@@ -26,12 +26,13 @@ const LAYOUT_CONFIG = {
   SPHERE: { RADIUS: 800 },
   HELIX: { STRANDS: 2, RADIUS: 900, THETA_STEP: 0.175, Y_STEP: 16, Y_OFFSET: 800 },
   GRID: { COLUMNS: 5, ROWS: 4, X_SPACING: 400, Y_SPACING: 400, Z_SPACING: 1000, X_OFFSET: 800, Y_OFFSET: 600, Z_OFFSET: 2000 },
+  PYRAMID: { SCALE: 1200, ROWS: 10 },
 };
 
 // --- SCENE STATE ---
 let camera, scene, renderer, controls;
 const objects = [];
-const targets = { table: [], sphere: [], helix: [], grid: [] };
+const targets = { table: [], sphere: [], helix: [], grid: [], pyramid: [] };
 const tweenGroup = new TWEEN.Group();
 
 /**
@@ -118,7 +119,7 @@ function init() {
 
   // 4. Layout view switcher listeners
   const setActiveMenuButton = (activeId) => {
-    ['table', 'sphere', 'helix', 'grid'].forEach((id) => {
+    ['table', 'sphere', 'helix', 'grid', 'pyramid'].forEach((id) => {
       const btn = document.getElementById(id);
       if (btn) {
         btn.classList.toggle('active', id === activeId);
@@ -143,6 +144,10 @@ function init() {
   document.getElementById('grid').addEventListener('click', () => {
     setActiveMenuButton('grid');
     transform(targets.grid, duration);
+  });
+  document.getElementById('pyramid').addEventListener('click', () => {
+    setActiveMenuButton('pyramid');
+    transform(targets.pyramid, duration);
   });
 
   window.addEventListener('resize', onWindowResize);
@@ -263,6 +268,63 @@ function buildPeriodicTable(data) {
     object.position.y = -(Math.floor(i / gridCfg.COLUMNS) % gridCfg.ROWS) * gridCfg.Y_SPACING + gridCfg.Y_OFFSET;
     object.position.z = Math.floor(i / layerSize) * gridCfg.Z_SPACING - gridCfg.Z_OFFSET;
     targets.grid.push(object);
+  }
+
+  // 5. 4-FACE PYRAMID (TETRAHEDRON)
+  const { SCALE: pyrScale, ROWS: pyrRows } = LAYOUT_CONFIG.PYRAMID;
+  const V0 = new THREE.Vector3(0, 1, 0).multiplyScalar(pyrScale);
+  const V1 = new THREE.Vector3(0, -1 / 3, (2 * Math.sqrt(2)) / 3).multiplyScalar(pyrScale);
+  const V2 = new THREE.Vector3(Math.sqrt(6) / 3, -1 / 3, -Math.sqrt(2) / 3).multiplyScalar(pyrScale);
+  const V3 = new THREE.Vector3(-Math.sqrt(6) / 3, -1 / 3, -Math.sqrt(2) / 3).multiplyScalar(pyrScale);
+
+  // 4 triangular faces with outward-facing vertex winding and "up" hints
+  const tetraFaces = [
+    { a: V0, b: V1, c: V2, up: new THREE.Vector3(0, 1, 0) },
+    { a: V0, b: V2, c: V3, up: new THREE.Vector3(0, 1, 0) },
+    { a: V0, b: V3, c: V1, up: new THREE.Vector3(0, 1, 0) },
+    { a: V1, b: V3, c: V2, up: new THREE.Vector3(0, 0, 1) },
+  ];
+
+  // Generate triangular grid slots across each of the 4 faces (55 slots per face for 10 rows)
+  const faceSlots = [];
+  tetraFaces.forEach((face) => {
+    const edge1 = new THREE.Vector3().subVectors(face.b, face.a);
+    const edge2 = new THREE.Vector3().subVectors(face.c, face.a);
+    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
+    for (let r = 0; r < pyrRows; r++) {
+      const vFrac = (r + 0.65) / (pyrRows + 0.5);
+      for (let c = 0; c <= r; c++) {
+        const uFrac = r === 0 ? 0.5 : c / r;
+        const wA = 1 - vFrac;
+        const wB = vFrac * (1 - uFrac);
+        const wC = vFrac * uFrac;
+
+        const pos = new THREE.Vector3()
+          .addScaledVector(face.a, wA)
+          .addScaledVector(face.b, wB)
+          .addScaledVector(face.c, wC);
+
+        faceSlots.push({ pos, normal, up: face.up });
+      }
+    }
+  });
+
+  const slotsPerFace = (pyrRows * (pyrRows + 1)) / 2;
+  const itemsPerFace = Math.ceil(count / 4);
+  for (let i = 0; i < count; i++) {
+    const faceIdx = Math.floor(i / itemsPerFace) % 4;
+    const localIdx = i % itemsPerFace;
+    // Center the 50 items symmetrically across the 55 triangular grid slots on each face
+    const slotOffset = Math.min(localIdx + 2, slotsPerFace - 1);
+    const slot = faceSlots[faceIdx * slotsPerFace + slotOffset];
+
+    const object = new THREE.Object3D();
+    object.position.copy(slot.pos);
+    object.up.copy(slot.up);
+    vector.copy(slot.pos).add(slot.normal);
+    object.lookAt(vector);
+    targets.pyramid.push(object);
   }
 
   transform(targets.table, LAYOUT_CONFIG.TRANSITION_DURATION_MS);
