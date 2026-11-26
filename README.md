@@ -19,11 +19,12 @@ An interactive 3D web visualization application built with **Three.js (`CSS3DRen
   - 🟥 **Red** (`rgba(239, 48, 34, 0.8)`): Net Worth **< $100,000**
   - 🟧 **Orange** (`rgba(245, 166, 35, 0.8)`): Net Worth **$100,000 – $200,000**
   - 🟩 **Green** (`rgba(58, 148, 72, 0.8)`): Net Worth **> $200,000**
-- **Four 3D Spatial Layouts**:
+- **Five 3D Spatial Layouts**:
   1. **TABLE (`20 × 10`)**: Organizes 200 profile tiles into a 20-column by 10-row periodic table grid.
   2. **SPHERE**: Distributes tiles evenly across a 3D Fibonacci sphere.
   3. **HELIX (Double Helix)**: Interleaves tiles along two opposing intertwined helical strands ($180^\circ$ phase offset).
   4. **GRID (`5 × 4 × 10`)**: Arranges tiles into a 3D volumetric matrix of 5 columns, 4 rows, and 10 depth layers.
+  5. **PYRAMID (4-Face Tetrahedron)**: Arranges tiles across the 4 equilateral triangular faces of a regular 3D tetrahedron.
 - **Interactive 3D Camera Controls**: Rotate, pan, and zoom smoothly in 3D space using `TrackballControls`.
 
 ---
